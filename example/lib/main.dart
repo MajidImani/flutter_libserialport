@@ -1,5 +1,13 @@
+import 'dart:developer';
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_libserialport/flutter_libserialport.dart';
+import 'package:flutter_libserialport_example/extensions.dart';
+import 'package:flutter_libserialport_example/serial-port-wrapper.dart';
+
+import 'card-list-title.dart';
 
 void main() => runApp(ExampleApp());
 
@@ -8,34 +16,13 @@ class ExampleApp extends StatefulWidget {
   _ExampleAppState createState() => _ExampleAppState();
 }
 
-extension IntToString on int {
-  String toHex() => '0x${toRadixString(16)}';
-  String toPadded([int width = 3]) => toString().padLeft(width, '0');
-  String toTransport() {
-    switch (this) {
-      case SerialPortTransport.usb:
-        return 'USB';
-      case SerialPortTransport.bluetooth:
-        return 'Bluetooth';
-      case SerialPortTransport.native:
-        return 'Native';
-      default:
-        return 'Unknown';
-    }
-  }
-}
-
 class _ExampleAppState extends State<ExampleApp> {
-  var availablePorts = [];
+  var port;
 
   @override
   void initState() {
     super.initState();
     initPorts();
-  }
-
-  void initPorts() {
-    setState(() => availablePorts = SerialPort.availablePorts);
   }
 
   @override
@@ -48,9 +35,9 @@ class _ExampleAppState extends State<ExampleApp> {
         body: Scrollbar(
           child: ListView(
             children: [
-              for (final address in availablePorts)
+              for (final address in SerialPortWrapper.getAvailablePorts())
                 Builder(builder: (context) {
-                  final port = SerialPort(address);
+                  final port = SerialPortWrapper.getSerialPort(address);
                   return ExpansionTile(
                     title: Text(address),
                     children: [
@@ -71,27 +58,38 @@ class _ExampleAppState extends State<ExampleApp> {
           ),
         ),
         floatingActionButton: FloatingActionButton(
-          child: Icon(Icons.refresh),
-          onPressed: initPorts,
+          child: Icon(Icons.send),
+          onPressed: sendCommand,
+          tooltip: "Send Commands",
         ),
       ),
     );
   }
-}
 
-class CardListTile extends StatelessWidget {
-  final String name;
-  final String? value;
+  Future initPorts() async {
+    try {
+      var port = SerialPortWrapper.getSerialPort(
+          SerialPortWrapper.filterPortByManufacturer("Tector"));
 
-  CardListTile(this.name, this.value);
+      setState(() => this.port = port);
 
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        title: Text(value ?? 'N/A'),
-        subtitle: Text(name),
-      ),
-    );
+      print('manufacturer: ${port.manufacturer}');
+      if (!port.openReadWrite()) {
+        //print(SerialPort.lastError);
+        exit(-1);
+      }
+
+      //SerialPortReader reader = SerialPortReader(this.port);
+      // reader.stream.listen((data) {
+      //   print('Received: $data');
+      // });
+    } on SerialPortError catch (err, _) {
+      print(SerialPort.lastError);
+    }
+  }
+
+  Future sendCommand() async {
+    //TODO
+    //For privacy reaons source codes are removed
   }
 }
